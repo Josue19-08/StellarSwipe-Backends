@@ -1,23 +1,38 @@
-import { NestFactory } from "@nestjs/core";
-import { ConfigService } from "@nestjs/config";
-import { ValidationPipe } from "@nestjs/common";
-import { AppModule } from "./app.module";
-import { GlobalExceptionFilter } from "./common/filters";
+import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters';
 import {
   LoggingInterceptor,
   TransformInterceptor,
-} from "./common/interceptors";
+} from './common/interceptors';
+import { LoggerService } from './common/logger';
+import { SentryService } from './common/sentry';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+
+  // Get services
   const configService = app.get(ConfigService);
+  const logger = app.get(LoggerService);
+  const sentryService = app.get(SentryService);
+
+  // Set Winston as the default logger
+  app.useLogger(logger);
+  logger.setContext('Bootstrap');
+
+  // Initialize Sentry
+  sentryService.init();
 
   // Get configuration
-  const port = configService.get("app.port");
-  const host = configService.get("app.host");
-  const apiPrefix = configService.get("app.apiPrefix");
-  const apiVersion = configService.get("app.apiVersion");
-  const corsConfig = configService.get("app.cors");
+  const port = configService.get('app.port');
+  const host = configService.get('app.host');
+  const apiPrefix = configService.get('app.apiPrefix');
+  const apiVersion = configService.get('app.apiVersion');
+  const corsConfig = configService.get('app.cors');
 
   // Set global prefix
   app.setGlobalPrefix(`${apiPrefix}/${apiVersion}`);
@@ -38,21 +53,53 @@ async function bootstrap() {
   );
 
   // Global filters
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  app.useGlobalFilters(new GlobalExceptionFilter(logger, sentryService));
 
   // Global interceptors
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalInterceptors(new LoggingInterceptor(logger));
   app.useGlobalInterceptors(new TransformInterceptor());
 
+  // Unhandled rejection handler
+  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+    logger.error('Unhandled Rejection', reason, {
+      promise: String(promise),
+    });
+    sentryService.captureException(
+      reason instanceof Error ? reason : new Error(String(reason)),
+      {
+        type: 'unhandledRejection',
+      },
+    );
+  });
+
+  // Uncaught exception handler
+  process.on('uncaughtException', (error: Error) => {
+    logger.error('Uncaught Exception', error);
+    sentryService.captureException(error, {
+      type: 'uncaughtException',
+    });
+    // Give time for logging and Sentry to flush
+    setTimeout(() => {
+      process.exit(1);
+    }, 1000);
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    logger.info('SIGTERM signal received: closing HTTP server');
+    await sentryService.flush();
+    await app.close();
+  });
+
   await app.listen(port, host, () => {
-    console.log(`🚀 StellarSwipe Backend running on http://${host}:${port}`);
-    console.log(
+    logger.info(`🚀 StellarSwipe Backend running on http://${host}:${port}`);
+    logger.info(
       `📚 API available at http://${host}:${port}${app.getGlobalPrefix()}`,
     );
   });
 }
 
 bootstrap().catch((err) => {
-  console.error("Failed to start application:", err);
+  console.error('Failed to start application:', err);
   process.exit(1);
 });
