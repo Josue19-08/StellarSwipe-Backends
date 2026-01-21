@@ -45,9 +45,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   await app.listen(port, host, () => {
-    console.log(`🚀 StellarSwipe Backend running on http://${host}:${port}`);
+    console.log(`StellarSwipe Backend running on http://${host}:${port}`);
     console.log(
-      `📚 API available at http://${host}:${port}${app.getGlobalPrefix()}`,
+      `API available at http://${host}:${port}${apiPrefix}/${apiVersion}`,
     );
   });
 }
