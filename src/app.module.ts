@@ -5,6 +5,8 @@ import { stellarConfig } from "./config/stellar.config";
 import { databaseConfig, redisConfig } from "./config/database.config";
 import { appConfig } from "./config/app.config";
 import { StellarConfigService } from "./config/stellar.service";
+import { SignalsModule } from "./signals/signals.module";
+import { UsersModule } from "./users/users.module";
 
 @Module({
   imports: [
@@ -23,17 +25,19 @@ import { StellarConfigService } from "./config/stellar.service";
         type: "postgres" as const,
         host: configService.get("database.host"),
         port: configService.get("database.port"),
-        username: configService.get("database.username"),
-        password: configService.get("database.password"),
-        database: configService.get("database.database"),
-        synchronize: configService.get("database.synchronize"),
-        logging: configService.get("database.logging"),
+        username: configService.get<string>("database.username"),
+        password: configService.get<string>("database.password"),
+        database: configService.get<string>("database.database"),
+        synchronize: configService.get<boolean>("database.synchronize"),
+        logging: configService.get<boolean>("database.logging"),
         entities: ["dist/**/*.entity{.ts,.js}"],
         migrations: ["dist/migrations/*{.ts,.js}"],
         subscribers: ["dist/subscribers/*{.ts,.js}"],
-        ssl: configService.get("database.ssl"),
+        ssl: configService.get<any>("database.ssl"),
       }),
     }),
+    UsersModule,
+    SignalsModule,
   ],
   providers: [StellarConfigService],
   exports: [StellarConfigService],

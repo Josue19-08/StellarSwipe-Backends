@@ -6,27 +6,27 @@ export class StellarConfigService {
   constructor(private configService: ConfigService) {}
 
   get network(): string {
-    return this.configService.get("stellar.network");
+    return this.configService.get<string>("stellar.network") || "testnet";
   }
 
   get horizonUrl(): string {
-    return this.configService.get("stellar.horizonUrl");
+    return this.configService.get<string>("stellar.horizonUrl") || "";
   }
 
   get sorobanRpcUrl(): string {
-    return this.configService.get("stellar.sorobanRpcUrl");
+    return this.configService.get<string>("stellar.sorobanRpcUrl") || "";
   }
 
   get networkPassphrase(): string {
-    return this.configService.get("stellar.networkPassphrase");
+    return this.configService.get<string>("stellar.networkPassphrase") || "";
   }
 
   get apiTimeout(): number {
-    return this.configService.get("stellar.apiTimeout");
+    return this.configService.get<number>("stellar.apiTimeout") || 30000;
   }
 
   get maxRetries(): number {
-    return this.configService.get("stellar.maxRetries");
+    return this.configService.get<number>("stellar.maxRetries") || 3;
   }
 
   isTestnet(): boolean {
